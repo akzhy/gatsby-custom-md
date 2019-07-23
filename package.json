@@ -1,0 +1,22 @@
+{
+	"name": "gatsby-custom-md",
+	"version": "1.0.0",
+	"description": "Plugin that allows custom components inside markdown. Supports markdown as children.",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [
+		"gatsby",
+		"custom",
+		"components",
+		"markdown"
+	],
+	"dependencies": {
+		"react": "^16.8.6",
+		"react-dom": "^16.8.6",
+		"rehype-react": "^3.1.0"
+	},
+	"author": "akzhy <hi@akzhy.com>",
+	"license": "MIT"
+}
