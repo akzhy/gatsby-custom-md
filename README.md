@@ -1,4 +1,7 @@
-# gatsby-custom-md
+# Gatsby Custom MD
+
+![](https://img.shields.io/badge/-beta-red.svg) ![](https://img.shields.io/github/license/akzhy/gatsby-custom-md.svg)
+
 Plugin that allows custom components inside markdown. Supports markdown as children.
 
 ## Installation
@@ -25,7 +28,7 @@ import { Component1, Component2, ComponentN } from './file'
 const components = {
   comp1: Component1,
   comp2: Component2,
-  compN: Component3
+  compN: ComponentN
 }
 ```
 
@@ -43,7 +46,7 @@ Now in the markdown file, you can use the components as follows.
 
 [comp1]
 This is first component
-**Markdown is supported inside it.
+**Markdown is supported inside it.**
 [/comp1]
 
 [comp2]
@@ -57,7 +60,7 @@ Example usage for grid creation.
 
 `template.js`
 
-```
+```javascript
 import MD from "gatsby-custom-md";
 import { Row, Col } from "./grid";
 
@@ -92,7 +95,7 @@ import React from "react";
 
 export const Row = function({ children }) {
   return (
-    <div className="row flex" style={{ color: "red" }}>
+    <div className="row">
       {children}
     </div>
   );
