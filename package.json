@@ -1,11 +1,15 @@
 {
 	"name": "gatsby-custom-md",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Plugin that allows custom components inside markdown. Supports markdown as children.",
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/akzhy/gatsby-custom-md.git"
+    },
 	"keywords": [
 		"gatsby",
 		"custom",
@@ -18,5 +22,9 @@
 		"rehype-react": "^3.1.0"
 	},
 	"author": "akzhy <hi@akzhy.com>",
-	"license": "MIT"
+	"license": "MIT",
+	"bugs": {
+      "url": "https://github.com/akzhy/gatsby-custom-md/issues"
+    },
+    "homepage": "https://github.com/akzhy/gatsby-custom-md"
 }
