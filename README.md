@@ -93,7 +93,7 @@ export const query = graphql`
 ```javascript
 import React from "react";
 
-export const Row = function({ children }) {
+export const Row = ({ children })=> {
   return (
     <div className="row">
       {children}
@@ -101,7 +101,7 @@ export const Row = function({ children }) {
   );
 };
 
-export const Col = function({ children }) {
+export const Col = ({ children })=>{
   return (
     <div className="col">
       <div>{children}</div>
