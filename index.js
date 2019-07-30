@@ -26,12 +26,13 @@ module.exports = function(props) {
 	let htmlAst = JSON.parse(JSON.stringify(htmlAstOriginal)); // This is to copy the given object.
 
 	let mainStack = []; // Stack that stores the position of opening and closing tags
-
 	// Seperate each line into a new object.
+
 	htmlAst.children.forEach(function(e, i) {
 		if (e.tagName === "p") {
 			let clen = e.children.length;
 			let ci = 0;
+
 
 			while (ci < clen) {
 				let value = e.children[ci].value;
@@ -40,26 +41,33 @@ module.exports = function(props) {
 				if (!/(\r\n|\n|\r)/gm.exec(value))
 					return;
 				let lineSepreated = value.split(/(\r\n|\n|\r)/gm);
+
+				let increment = 0;
 				lineSepreated.forEach(function(lse, lsi) {
 					if (lse.trim().length > 0) {
-						if (lsi === 0) {
+						if (increment === 0) {
 							htmlAst.children[i].children[ci] = {
 								type: "text",
 								value: lse
 							}
 						} else {
-							htmlAst.children[i].children.splice((ci + lsi), 0, {
+							htmlAst.children[i].children.splice(ci+increment, 0, {
 								type: "text",
 								value: lse
 							})
 						}
 						clen = e.children.length;
-						ci++;
+						increment++;
 					}
 				})
+				ci++;
+
 			}
 		}
 	})
+
+
+
 
 	// Scan for starting end ending tags, they are in the form [component-name] and [/component-name] respectively.
 
