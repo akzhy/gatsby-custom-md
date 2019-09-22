@@ -8,395 +8,398 @@ Keep this in mind before reading.
 const React = require("react");
 const rehypeReact = require("rehype-react");
 
-const renderAst = new rehypeReact({createElement: React.createElement}).Compiler
+const renderAst = new rehypeReact({ createElement: React.createElement })
+  .Compiler;
 
 /**
  * The main function
  * @param {Object} props
-*/
+ */
 
 module.exports = function(props) {
-	/*
+  /*
 	So the Idea is to scan the HAST for starting and ending tags, then the data between those tags are passed as children to the given react component.
 	The react component is then converted to HAST form.
 	*/
 
-	const components = props.components;
-	const htmlAstOriginal = props.htmlAst;
-	let htmlAst = JSON.parse(JSON.stringify(htmlAstOriginal)); // This is to copy the given object.
+  const components = props.components;
+  const htmlAstOriginal = props.htmlAst;
+  let htmlAst = JSON.parse(JSON.stringify(htmlAstOriginal)); // This is to copy the given object.
 
-	let mainStack = []; // Stack that stores the position of opening and closing tags
+  let mainStack = []; // Stack that stores the position of opening and closing tags
 
-	// Seperate each line into a new object.
-	htmlAst.children.forEach(function(e, i) {
-		if (e.tagName === "p") {
-			let clen = e.children.length;
-			let ci = 0;
+  // Seperate each line into a new object.
+  htmlAst.children.forEach(function(e, i) {
+    if (e.tagName === "p") {
+      let clen = e.children.length;
+      let ci = 0;
 
-			while (ci < clen) {
-				let value = e.children[ci].value;
-				if (typeof(value) !== "string")
-					return;
-				if (!/(\r\n|\n|\r)/gm.exec(value))
-					return;
-				let lineSepreated = value.split(/(\r\n|\n|\r)/gm);
-				lineSepreated.forEach(function(lse, lsi) {
-					if (lse.trim().length > 0) {
-						if (lsi === 0) {
-							htmlAst.children[i].children[ci] = {
-								type: "text",
-								value: lse
-							}
-						} else {
-							htmlAst.children[i].children.splice((ci + lsi), 0, {
-								type: "text",
-								value: lse
-							})
-						}
-						clen = e.children.length;
-						ci++;
-					}
-				})
-			}
-		}
-	})
+      while (ci < clen) {
+        let value = e.children[ci].value;
+        if (typeof value !== "string") return;
+        if (!/(\r\n|\n|\r)/gm.exec(value)) return;
+        let lineSepreated = value.split(/(\r\n|\n|\r)/gm);
+        lineSepreated.forEach(function(lse, lsi) {
+          if (lse.trim().length > 0) {
+            if (lsi === 0) {
+              htmlAst.children[i].children[ci] = {
+                type: "text",
+                value: lse
+              };
+            } else {
+              htmlAst.children[i].children.splice(ci + lsi, 0, {
+                type: "text",
+                value: lse
+              });
+            }
+            clen = e.children.length;
+            ci++;
+          }
+        });
+      }
+    }
+  });
 
-	// Scan for starting end ending tags, they are in the form [component-name] and [/component-name] respectively.
+  // Scan for starting end ending tags, they are in the form [component-name] and [/component-name] respectively.
 
-	htmlAst.children.forEach(function(e, i) {
-		if (e.tagName === "p") {
-			e.children.forEach(function(ec, ic) {
-				let arr = [];
-				let value = ec.value;
+  htmlAst.children.forEach(function(e, i) {
+    if (e.tagName === "p") {
+      e.children.forEach(function(ec, ic) {
+        let arr = [];
+        let value = ec.value;
 
-				if (typeof(value) !== "string")
-					return;
+        if (typeof value !== "string") return;
 
-				for (let ck in components) {
-					if (components.hasOwnProperty(ck)) {
+        for (let ck in components) {
+          if (components.hasOwnProperty(ck)) {
+            // If a starting tag is found, it's index is recorded. Same for closing tags.
+            const testString =
+              "\\[([" + ck + "]+)([^]*?)(\\/?)\\](?:([^]*?)\\[\\/\\1\\s*\\])?";
+            const regex = new RegExp(testString, "g");
 
-						// If a starting tag is found, it's index is recorded. Same for closing tags.
-						const testString = '\\[(['+ck+']+)([^]*?)(\\/?)\\](?:([^]*?)\\[\\/\\1\\s*\\])?';
-						const regex = new RegExp(testString,"g");
+            const match = value.match(regex);
 
-						const match = value.match(regex);
+            if (match) {
+              let m = match[0];
+              const htmlString = m.replace(`[${ck}`, "<span");
+              const lI = htmlString.lastIndexOf("]");
+              const full =
+                htmlString.substr(0, lI) +
+                "></span>" +
+                htmlString.substr(lI + 7);
 
+              const domElem = createElementFromHTML(full);
 
-						if (match) {
-							let m = match[0];
-							const htmlString = m.replace(`[${ck}`,'<span');
-							const lI = htmlString.lastIndexOf(']');
-							const full = htmlString.substr(0, lI) + '></span>' + htmlString.substr(lI + 7);
-							
-							const domElem = createElementFromHTML(full);
+              for (
+                var di = 0,
+                  atts = domElem.attributes,
+                  dn = atts.length,
+                  allAtts = {};
+                di < dn;
+                di++
+              ) {
+                allAtts[atts[di].nodeName] = domElem.getAttribute(
+                  atts[di].nodeName
+                );
+              }
 
-							for (var di = 0, atts = domElem.attributes, dn = atts.length, allAtts = {}; di < dn; di++){
-								allAtts[atts[di].nodeName] = domElem.getAttribute(atts[di].nodeName);
-							}
+              arr.push({
+                c: ck,
+                type: "open",
+                attrs: allAtts,
+                pos: [i, ic, [value.indexOf(match), match.length]],
+                tag: match
+              });
+            }
+            if (value.indexOf(`[/${ck}]`) !== -1) {
+              arr.push({
+                c: ck,
+                type: "close",
+                pos: [i, ic, [value.indexOf(`[/${ck}]`), `[${ck}]`.length]],
+                tag: `[/${ck}]`
+              });
+            }
+          }
+        }
 
-							arr.push({
-								c: ck,
-								type: "open",
-								attrs: allAtts,
-								pos: [
-									i,
-									ic,
-									[
-										value.indexOf(match),
-										match.length
-									]
-								],
-								tag: match
-							})
-						}
-						if (value.indexOf(`[/${ck}]`) !== -1) {
-							arr.push({
-								c: ck,
-								type: "close",
-								pos: [
-									i,
-									ic,
-									[
-										value.indexOf(`[/${ck}]`),
-										`[${ck}]`.length
-									]
-								],
-								tag: `[/${ck}]`
-							})
-						}
-					}
-				}
-
-				/* Sorting required because the components are scanned in the order that is provided by the user,
+        /* Sorting required because the components are scanned in the order that is provided by the user,
 					For example, if `col`,`row` are given as components, and `col` is a child of `row`, then `col` is scanned first, even though row should be first, therefore the array is sorted based on the index they appear.
 				*/
 
-				arr.sort(function(a, b) {
-					return a.pos[2][0] == b.pos[2][0]
-						? 0
-						: + (a.pos[2][0] > b.pos[2][0]) || -1;
-				})
+        arr.sort(function(a, b) {
+          return a.pos[2][0] == b.pos[2][0]
+            ? 0
+            : +(a.pos[2][0] > b.pos[2][0]) || -1;
+        });
 
-				mainStack.push(...arr);
+        mainStack.push(...arr);
+      });
+    }
+  });
 
-			})
-		}
-	})
+  let startStack = [];
+  let endStack = [];
 
-	let startStack = [];
-	let endStack = [];
-
-	/*
+  /*
 	Properly match the ending tags to the starting tags.
 	*/
 
-	for (let l = 0; l < mainStack.length; l++) {
-		let numOpeningFound = 0;
-		if (mainStack[l].type === "close")
-			continue;
-		for (let m = l + 1; m < mainStack.length; m++) {
-			if (mainStack[m].tag === mainStack[l].tag) {
-				numOpeningFound += 1;
-			} else {
-				if (mainStack[m].c === mainStack[l].c) {
-					numOpeningFound -= 1;
+  for (let l = 0; l < mainStack.length; l++) {
+    let numOpeningFound = 0;
+    if (mainStack[l].type === "close") continue;
+    for (let m = l + 1; m < mainStack.length; m++) {
+      if (mainStack[m].tag === mainStack[l].tag) {
+        numOpeningFound += 1;
+      } else {
+        if (mainStack[m].c === mainStack[l].c) {
+          numOpeningFound -= 1;
 
-					if (numOpeningFound === -1) {
-						startStack.push(mainStack[l]);
-						endStack.push(mainStack[m]);
-						break;
-					}
-				}
-			}
-		}
-	}
+          if (numOpeningFound === -1) {
+            startStack.push(mainStack[l]);
+            endStack.push(mainStack[m]);
+            break;
+          }
+        }
+      }
+    }
+  }
 
-	let start = startStack.pop();
+  let start = startStack.pop();
 
-	let end = endStack.pop();
+  let end = endStack.pop();
 
-	// Pop all the items of startStack until there are none.
+  // Pop all the items of startStack until there are none.
 
-	while (start != undefined) {
+  while (start != undefined) {
+    let p = [];
 
-		let p = [];
+    let s1 = start.pos[0];
+    let e1 = end.pos[0];
 
-		let s1 = start.pos[0];
-		let e1 = end.pos[0];
-
-		/*
+    /*
 
 		The below loops will search the HAST and extract the data between the starting and ending tags.
 
 		*/
 
-		for (let l = s1; l <= e1; l++) {
-			// Find the value of the next starting point. ie child Object index
-			let s2 = l === s1
-				? start.pos[1]
-				: 0;
+    for (let l = s1; l <= e1; l++) {
+      // Find the value of the next starting point. ie child Object index
+      let s2 = l === s1 ? start.pos[1] : 0;
 
-			// Checking for text oe empty lines. They are kept as they are.
-			if (htmlAst.children[l] && htmlAst.children[l].children == undefined) {
-				p.push(htmlAst.children[l]);
-				continue;
-			}
+      // Checking for text oe empty lines. They are kept as they are.
+      if (htmlAst.children[l] && htmlAst.children[l].children == undefined) {
+        p.push(htmlAst.children[l]);
+        continue;
+      }
 
-			let e2 = l === e1
-				? end.pos[1]
-				: htmlAst.children[l].children.length - 1;
+      let e2 = l === e1 ? end.pos[1] : htmlAst.children[l].children.length - 1;
 
+      for (let m = s2; m <= e2; m++) {
+        if (l === s1 && m === s2 && (l === e1) & (m === e2)) {
+          let cText = htmlAst.children[l].children[m].value;
+          if (htmlAst.children[l].children[m].replaceTagEnd == undefined) {
+            htmlAst.children[l].children[m].replaceTagEnd = [];
+          }
 
-			for (let m = s2; m <= e2; m++) {
+          htmlAst.children[l].children[m].replaceTagEnd.push(`[/${end.c}]`);
 
-				if (l === s1 && m === s2 && l === e1 & m === e2) {
-					let cText = htmlAst.children[l].children[m].value;
-					if (htmlAst.children[l].children[m].replaceTagEnd == undefined) {
-						htmlAst.children[l].children[m].replaceTagEnd = [];
-					}
+          if (htmlAst.children[l].children[m].replaceTagStart == undefined) {
+            htmlAst.children[l].children[m].replaceTagStart = [];
+          }
 
-					htmlAst.children[l].children[m].replaceTagEnd.push(`[/${end.c}]`);
+          htmlAst.children[l].children[m].replaceTagStart.push(start.match);
 
-					if (htmlAst.children[l].children[m].replaceTagStart == undefined) {
-						htmlAst.children[l].children[m].replaceTagStart = [];
-					}
+          p.push({
+            type: "text",
+            value: cText.substring(
+              cText.indexOf(start.tag),
+              cText.indexOf(end.tag) + end.tag.length
+            ),
+            replaceTagEnd: htmlAst.children[l].children[m].replaceTagEnd,
+            replaceTagStart: htmlAst.children[l].children[m].replaceTagStart
+          });
 
-					htmlAst.children[l].children[m].replaceTagStart.push(start.match);
+          htmlAst.children[l].children[m].value = cText.replace(
+            cText.substring(
+              cText.indexOf(start.tag),
+              cText.indexOf(end.tag) + end.tag.length
+            ),
+            ""
+          );
+        } else if (l === s1 && m === s2) {
+          let cText = htmlAst.children[l].children[m].value;
+          if (htmlAst.children[l].children[m].replaceTagStart == undefined) {
+            htmlAst.children[l].children[m].replaceTagStart = [];
+          }
+          htmlAst.children[l].children[m].replaceTagStart.push(start.tag);
 
-					p.push({
-						type: "text",
-						value: cText.substring(cText.indexOf(start.tag), cText.indexOf(end.tag) + end.tag.length),
-						replaceTagEnd: htmlAst.children[l].children[m].replaceTagEnd,
-						replaceTagStart: htmlAst.children[l].children[m].replaceTagStart
-					})
+          let val = cText.substring(cText.indexOf(start.tag), cText.length);
 
-					htmlAst.children[l].children[m].value = cText.replace(cText.substring(cText.indexOf(start.tag), cText.indexOf(end.tag) + end.tag.length), "");
+          p.push({
+            type: "text",
+            value: val,
+            replaceTagStart: htmlAst.children[l].children[m].replaceTagStart
+          });
 
-				} else if (l === s1 && m === s2) {
+          htmlAst.children[l].children[m].value = cText.replace(val, "");
+        } else if (l === e1 && m === e2) {
+          if (Object.keys(htmlAst.children[l].children[m]).length === 0)
+            continue;
 
-					let cText = htmlAst.children[l].children[m].value;
-					if (htmlAst.children[l].children[m].replaceTagStart == undefined) {
-						htmlAst.children[l].children[m].replaceTagStart = [];
-					}
-					htmlAst.children[l].children[m].replaceTagStart.push(start.tag);
+          let cText = htmlAst.children[l].children[m].value;
 
-					let val = cText.substring(cText.indexOf(start.tag), cText.length);
+          if (htmlAst.children[l].children[m].replaceTagEnd == undefined) {
+            htmlAst.children[l].children[m].replaceTagEnd = [];
+          }
 
-					p.push({type: "text", value: val, replaceTagStart: htmlAst.children[l].children[m].replaceTagStart})
+          htmlAst.children[l].children[m].replaceTagEnd.push(`[/${end.c}]`);
 
-					htmlAst.children[l].children[m].value = cText.replace(val, "")
+          p.push({
+            type: "text",
+            value: cText.substring(0, cText.indexOf(end.tag) + end.tag.length),
+            replaceTagEnd: htmlAst.children[l].children[m].replaceTagEnd
+          });
 
-				} else if (l === e1 && m === e2) {
+          htmlAst.children[l].children[m].value = cText.replace(
+            cText.substring(0, cText.indexOf(end.tag) + end.tag.length),
+            ""
+          );
+        } else {
+          // Plain text is displayed as a paragraph element.
 
-					if (Object.keys(htmlAst.children[l].children[m]).length === 0)
-						continue;
+          if (
+            htmlAst.children[l].children[m].type === "text" &&
+            htmlAst.children[l].children[m].value.trim().length !== 0
+          ) {
+            htmlAst.children[l].children[m].type = "element";
+            htmlAst.children[l].children[m].tagName = "p";
+            htmlAst.children[l].children[m].children = [];
+            htmlAst.children[l].children[m].children.push({
+              type: "text",
+              value: htmlAst.children[l].children[m].value
+            });
+          }
 
-					let cText = htmlAst.children[l].children[m].value;
+          p.push(htmlAst.children[l].children[m]);
+          htmlAst.children[l].children[m] = {};
+        }
+      }
+    }
 
-					if (htmlAst.children[l].children[m].replaceTagEnd == undefined) {
-						htmlAst.children[l].children[m].replaceTagEnd = [];
-					}
+    // Remove the starting and ending tags.
 
-					htmlAst.children[l].children[m].replaceTagEnd.push(`[/${end.c}]`)
+    p.forEach(function(e, i) {
+      if (!e) return;
+      if (e.replaceTagStart) {
+        e.replaceTagStart.forEach(function(er, ir) {
+          p[i].value = e.value.replace(er, "");
+        });
+      }
+      if (e.replaceTagEnd) {
+        e.replaceTagEnd.forEach(function(er, ir) {
+          p[i].value = e.value.replace(er, "");
+        });
+      }
+    });
 
-					p.push({
-						type: "text",
-						value: cText.substring(0, cText.indexOf(end.tag) + end.tag.length),
-						replaceTagEnd: htmlAst.children[l].children[m].replaceTagEnd
-					})
+    let pLen = p.length - 1;
 
-					htmlAst.children[l].children[m].value = cText.replace(cText.substring(0, cText.indexOf(end.tag) + end.tag.length), "")
+    // Remove empty objects
 
-				} else {
+    while (pLen >= 0) {
+      if (!p[pLen]) {
+        pLen--;
+        continue;
+      }
+      if (Object.keys(p[pLen]).length == 0) {
+        p.splice(pLen, 1);
+      }
+      pLen--;
+    }
 
-					// Plain text is displayed as a paragraph element.
+    // Execute the react component with the data as children.
 
-					if (htmlAst.children[l].children[m].type === "text" && htmlAst.children[l].children[m].value.trim().length !== 0) {
-						htmlAst.children[l].children[m].type = "element"
-						htmlAst.children[l].children[m].tagName = "p"
-						htmlAst.children[l].children[m].children = [];
-						htmlAst.children[l].children[m].children.push({type: "text", value: htmlAst.children[l].children[m].value})
-					}
+    let t = components[start.c]({
+      attrs: start.attrs,
+      children: {
+        type: "child",
+        p
+      }
+    });
 
-					p.push(htmlAst.children[l].children[m])
-					htmlAst.children[l].children[m] = {};
-				}
-			}
-		}
+    // Traverse the React Tree and convert it into HAST
+    let trav = RtoHAST(t);
 
-		// Remove the starting and ending tags.
+    // Add the tree to the original.
+    if (
+      htmlAst.children[start.pos[0]].children[start.pos[1] + 1] == undefined
+    ) {
+      htmlAst.children[start.pos[0]].children.splice(
+        start.pos[1] + 1,
+        0,
+        trav[0]
+      );
+    } else {
+      htmlAst.children[start.pos[0]].children[start.pos[1] + 1] = trav[0];
+    }
 
-		p.forEach(function(e, i) {
-			if (!e)
-				return;
-			if (e.replaceTagStart) {
-				e.replaceTagStart.forEach(function(er, ir) {
-					p[i].value = e.value.replace(er, "");
-				})
-			}
-			if (e.replaceTagEnd) {
-				e.replaceTagEnd.forEach(function(er, ir) {
-					p[i].value = e.value.replace(er, "");
-				})
-			}
-		})
+    // Change the parent element to div
 
-		let pLen = p.length - 1;
+    htmlAst.children[start.pos[0]].tagName = "div";
 
-		// Remove empty objects
+    start = startStack.pop();
+    end = endStack.pop();
+  }
 
-		while (pLen >= 0) {
-			if (!p[pLen]) {
-				pLen--;
-				continue;
-			}
-			if (Object.keys(p[pLen]).length == 0) {
-				p.splice(pLen, 1);
-			}
-			pLen--;
-		}
+  /**
+   * Converts React tree to HAST
+   * @param {Object} node - React Tree
+   * @param {arr} array - It is used to store data during recursion, not required while calling the function.
+   */
+  function RtoHAST(node, arr) {
+    if (typeof node === "string") {
+      let obj = {
+        type: "text",
+        value: node
+      };
+      arr.push(obj);
+      return arr;
+    }
 
-		// Execute the react component with the data as children.
+    if (!node.props) return false;
 
-		let t = components[start.c]({
-			attrs: start.attrs,
-			children: {
-				type: "child",
-				p
-			}
-		});
+    if (arr == undefined) arr = [];
 
-		// Traverse the React Tree and convert it into HAST
-		let trav = RtoHAST(t);
+    let obj = {
+      type: "element",
+      tagName: node.type,
+      properties: {},
+      children: []
+    };
 
-		// Add the tree to the original.
-		if (htmlAst.children[start.pos[0]].children[start.pos[1] + 1] == undefined) {
-			htmlAst.children[start.pos[0]].children.splice(start.pos[1] + 1, 0, trav[0]);
-		} else {
-			htmlAst.children[start.pos[0]].children[start.pos[1] + 1] = trav[0];
-		}
+    if (node.props.className) {
+      obj.properties.className = node.props.className.split(" ");
+    }
 
-		// Change the parent element to div
+    if (node.props.children && node.props.children.type === "child") {
+      obj.children = node.props.children.p;
+      arr.push(obj);
+    } else {
+      arr.push(obj);
+      var children = React.Children.toArray(node.props.children);
+      children.forEach(function(e, i) {
+        RtoHAST(e, obj.children);
+      });
+    }
 
-		htmlAst.children[start.pos[0]].tagName = "div";
+    return arr;
+  }
 
-		start = startStack.pop();
-		end = endStack.pop();
-	}
+  function createElementFromHTML(htmlString) {
+    var div = document.createElement("div");
+    div.innerHTML = htmlString.trim();
+    return div.firstChild;
+  }
 
-	/**
-	* Converts React tree to HAST
-	* @param {Object} node - React Tree
-	* @param {arr} array - It is used to store data during recursion, not required while calling the function.
-	*/
-	function RtoHAST(node, arr) {
-		if (typeof(node) === "string") {
-			let obj = {
-				type: "text",
-				value: node
-			}
-			arr.push(obj);
-			return arr;
-		}
-
-		if (!node.props)
-			return false;
-
-		if (arr == undefined)
-			arr = [];
-
-		let obj = {
-			type: "element",
-			tagName: node.type,
-			properties: {},
-			children: []
-		}
-
-		if (node.props.className) {
-			obj.properties.className = node.props.className.split(" ");
-		}
-
-		if (node.props.children && node.props.children.type === "child") {
-			obj.children = node.props.children.p;
-			arr.push(obj)
-		} else {
-
-			arr.push(obj)
-			var children = React.Children.toArray(node.props.children);
-			children.forEach(function(e, i) {
-				RtoHAST(e, obj.children);
-			})
-		}
-
-		return arr;
-	}
-
-	function createElementFromHTML(htmlString) {
-		var div = document.createElement('div');
-		div.innerHTML = htmlString.trim();
-		return div.firstChild; 
-	}
-
-	return (renderAst(htmlAst))
-
-}
+  return renderAst(htmlAst);
+};
