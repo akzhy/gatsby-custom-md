@@ -75,15 +75,19 @@ module.exports = function(props) {
 				for (let ck in components) {
 					if (components.hasOwnProperty(ck)) {
 
-						// If a starting tag is found, it's index is recorded. Same for closing tags.
+						// Detect starting tags, the regex checks for shortcodes
+
 						const testString = '\\[(['+ck+']+)([^]*?)(\\/?)\\](?:([^]*?)\\[\\/\\1\\s*\\])?';
 						const regex = new RegExp(testString,"g");
 
 						const match = value.match(regex);
 
-
+						// If a starting tag is found, it's index and other details are recorded and the attributes are extracted.
 						if (match) {
 							let m = match[0];
+
+							// The below code extracts attributes by converting the shortcode to a span element. Then the attributes are fetched using normal methods. 
+
 							const htmlString = m.replace(`[${ck}`,'<span');
 							const lI = htmlString.lastIndexOf(']');
 							const full = htmlString.substr(0, lI) + '></span>' + htmlString.substr(lI + 7);
@@ -390,6 +394,12 @@ module.exports = function(props) {
 
 		return arr;
 	}
+
+	/**
+	*	Function to create an element from string
+	*	@param htmlString, string to be converted to an HTML element.
+	*
+	*/
 
 	function createElementFromHTML(htmlString) {
 		var div = document.createElement('div');
