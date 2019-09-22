@@ -3,7 +3,7 @@ I've been out of the loop for some time, so my knowledge of latest JS is somewha
 The below program could be shortened using better javascript.
 
 Keep this in mind before reading.
-Take a deep breath, for what you're about to witness is the strength of street knowledge :) */
+*/
 
 const React = require("react");
 const rehypeReact = require("rehype-react");
@@ -26,13 +26,12 @@ module.exports = function(props) {
 	let htmlAst = JSON.parse(JSON.stringify(htmlAstOriginal)); // This is to copy the given object.
 
 	let mainStack = []; // Stack that stores the position of opening and closing tags
-	// Seperate each line into a new object.
 
+	// Seperate each line into a new object.
 	htmlAst.children.forEach(function(e, i) {
 		if (e.tagName === "p") {
 			let clen = e.children.length;
 			let ci = 0;
-
 
 			while (ci < clen) {
 				let value = e.children[ci].value;
@@ -41,33 +40,26 @@ module.exports = function(props) {
 				if (!/(\r\n|\n|\r)/gm.exec(value))
 					return;
 				let lineSepreated = value.split(/(\r\n|\n|\r)/gm);
-
-				let increment = 0;
 				lineSepreated.forEach(function(lse, lsi) {
 					if (lse.trim().length > 0) {
-						if (increment === 0) {
+						if (lsi === 0) {
 							htmlAst.children[i].children[ci] = {
 								type: "text",
 								value: lse
 							}
 						} else {
-							htmlAst.children[i].children.splice(ci+increment, 0, {
+							htmlAst.children[i].children.splice((ci + lsi), 0, {
 								type: "text",
 								value: lse
 							})
 						}
 						clen = e.children.length;
-						increment++;
+						ci++;
 					}
 				})
-				ci++;
-
 			}
 		}
 	})
-
-
-
 
 	// Scan for starting end ending tags, they are in the form [component-name] and [/component-name] respectively.
 
@@ -84,20 +76,37 @@ module.exports = function(props) {
 					if (components.hasOwnProperty(ck)) {
 
 						// If a starting tag is found, it's index is recorded. Same for closing tags.
+						const testString = '\\[(['+ck+']+)([^]*?)(\\/?)\\](?:([^]*?)\\[\\/\\1\\s*\\])?';
+						const regex = new RegExp(testString,"g");
 
-						if (value.indexOf(`[${ck}]`) !== -1) {
+						const match = value.match(regex);
+
+
+						if (match) {
+							let m = match[0];
+							const htmlString = m.replace(`[${ck}`,'<span');
+							const lI = htmlString.lastIndexOf(']');
+							const full = htmlString.substr(0, lI) + '></span>' + htmlString.substr(lI + 7);
+							
+							const domElem = createElementFromHTML(full);
+
+							for (var di = 0, atts = domElem.attributes, dn = atts.length, allAtts = {}; di < dn; di++){
+								allAtts[atts[di].nodeName] = domElem.getAttribute(atts[di].nodeName);
+							}
+
 							arr.push({
 								c: ck,
 								type: "open",
+								attrs: allAtts,
 								pos: [
 									i,
 									ic,
 									[
-										value.indexOf(`[${ck}]`),
-										`[${ck}]`.length
+										value.indexOf(match),
+										match.length
 									]
 								],
-								tag: `[${ck}]`
+								tag: match
 							})
 						}
 						if (value.indexOf(`[/${ck}]`) !== -1) {
@@ -206,13 +215,13 @@ module.exports = function(props) {
 						htmlAst.children[l].children[m].replaceTagEnd = [];
 					}
 
-					htmlAst.children[l].children[m].replaceTagEnd.push(end.c);
+					htmlAst.children[l].children[m].replaceTagEnd.push(`[/${end.c}]`);
 
 					if (htmlAst.children[l].children[m].replaceTagStart == undefined) {
 						htmlAst.children[l].children[m].replaceTagStart = [];
 					}
 
-					htmlAst.children[l].children[m].replaceTagStart.push(start.c);
+					htmlAst.children[l].children[m].replaceTagStart.push(start.match);
 
 					p.push({
 						type: "text",
@@ -229,7 +238,7 @@ module.exports = function(props) {
 					if (htmlAst.children[l].children[m].replaceTagStart == undefined) {
 						htmlAst.children[l].children[m].replaceTagStart = [];
 					}
-					htmlAst.children[l].children[m].replaceTagStart.push(start.c);
+					htmlAst.children[l].children[m].replaceTagStart.push(start.tag);
 
 					let val = cText.substring(cText.indexOf(start.tag), cText.length);
 
@@ -248,7 +257,7 @@ module.exports = function(props) {
 						htmlAst.children[l].children[m].replaceTagEnd = [];
 					}
 
-					htmlAst.children[l].children[m].replaceTagEnd.push(end.c)
+					htmlAst.children[l].children[m].replaceTagEnd.push(`[/${end.c}]`)
 
 					p.push({
 						type: "text",
@@ -282,12 +291,12 @@ module.exports = function(props) {
 				return;
 			if (e.replaceTagStart) {
 				e.replaceTagStart.forEach(function(er, ir) {
-					p[i].value = e.value.replace(`[${er}]`, "");
+					p[i].value = e.value.replace(er, "");
 				})
 			}
 			if (e.replaceTagEnd) {
 				e.replaceTagEnd.forEach(function(er, ir) {
-					p[i].value = e.value.replace(`[/${er}]`, "");
+					p[i].value = e.value.replace(er, "");
 				})
 			}
 		})
@@ -310,6 +319,7 @@ module.exports = function(props) {
 		// Execute the react component with the data as children.
 
 		let t = components[start.c]({
+			attrs: start.attrs,
 			children: {
 				type: "child",
 				p
@@ -379,6 +389,12 @@ module.exports = function(props) {
 		}
 
 		return arr;
+	}
+
+	function createElementFromHTML(htmlString) {
+		var div = document.createElement('div');
+		div.innerHTML = htmlString.trim();
+		return div.firstChild; 
 	}
 
 	return (renderAst(htmlAst))
