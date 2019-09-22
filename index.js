@@ -7,6 +7,8 @@ Keep this in mind before reading.
 
 const React = require("react");
 const rehypeReact = require("rehype-react");
+const parse = require('html-react-parser');
+
 
 const renderAst = new rehypeReact({createElement: React.createElement}).Compiler
 
@@ -92,11 +94,10 @@ module.exports = function(props) {
 							const lI = htmlString.lastIndexOf(']');
 							const full = htmlString.substr(0, lI) + '></span>' + htmlString.substr(lI + 7);
 							
-							const domElem = createElementFromHTML(full);
-
-							for (var di = 0, atts = domElem.attributes, dn = atts.length, allAtts = {}; di < dn; di++){
-								allAtts[atts[di].nodeName] = domElem.getAttribute(atts[di].nodeName);
-							}
+							const reactElem = parse(full);
+							const rProps = reactElem.props;
+							delete rProps.children;
+							const allAtts = rProps;
 
 							arr.push({
 								c: ck,
@@ -376,6 +377,20 @@ module.exports = function(props) {
 			children: []
 		}
 
+		if(node.props.style){
+			let style = node.props.style;
+			let styleKeys = Object.keys(style);
+			let styles = [];
+
+			styleKeys.forEach((e) => {
+				styles.push(e+":"+style[e]);
+			})
+
+			styles = styles.join(";")+";";
+
+			obj.properties.style = styles;
+		}
+
 		if (node.props.className) {
 			obj.properties.className = node.props.className.split(" ");
 		}
@@ -393,18 +408,6 @@ module.exports = function(props) {
 		}
 
 		return arr;
-	}
-
-	/**
-	*	Function to create an element from string
-	*	@param htmlString, string to be converted to an HTML element.
-	*
-	*/
-
-	function createElementFromHTML(htmlString) {
-		var div = document.createElement('div');
-		div.innerHTML = htmlString.trim();
-		return div.firstChild; 
 	}
 
 	return (renderAst(htmlAst))
