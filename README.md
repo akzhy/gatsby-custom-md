@@ -133,5 +133,5 @@ export const Col = ({ children })=>{
 
  * This still requires a lot of testing. I have tested with most possbilities however there may still be bugs. 
  * This is for **Layout designing** only. `class` cannot be used to create components.
- * Attributes are not allowed. (This maybe added in a new version)
+ * ~Attributes are not allowed. (This maybe added in a new version)~. Attributes can now be added to shortcodes, they are available as `attrs` props to the component.
 
