@@ -376,6 +376,20 @@ module.exports = function(props) {
 			children: []
 		}
 
+		if(node.props.style){
+			let style = node.props.style;
+			let styleKeys = Object.keys(style);
+			let styles = [];
+
+			styleKeys.forEach((e) => {
+				styles.push(e+":"+style[e]);
+			})
+
+			styles = styles.join(";")+";";
+
+			obj.properties.style = styles;
+		}
+
 		if (node.props.className) {
 			obj.properties.className = node.props.className.split(" ");
 		}
