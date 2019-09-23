@@ -42,6 +42,9 @@ module.exports = function(props) {
 				if (!/(\r\n|\n|\r)/gm.exec(value))
 					return;
 				let lineSepreated = value.split(/(\r\n|\n|\r)/gm);
+
+				let increment = 0;
+
 				lineSepreated.forEach(function(lse, lsi) {
 					if (lse.trim().length > 0) {
 						if (lsi === 0) {
@@ -50,15 +53,17 @@ module.exports = function(props) {
 								value: lse
 							}
 						} else {
-							htmlAst.children[i].children.splice((ci + lsi), 0, {
+							htmlAst.children[i].children.splice((ci+increment), 0, {
 								type: "text",
 								value: lse
 							})
 						}
 						clen = e.children.length;
-						ci++;
+
+						increment++;
 					}
 				})
+				ci++;
 			}
 		}
 	})
