@@ -93,16 +93,18 @@ module.exports = function(props) {
 						if (match) {
 							let m = match[0];
 
+							if(m !== `[${ck}]`) continue;
+
 							// The below code extracts attributes by converting the shortcode to a span element. Then the attributes are fetched using normal methods. 
 
-							const htmlString = m.replace(`[${ck}`,'<span');
-							const lI = htmlString.lastIndexOf(']');
-							const full = htmlString.substr(0, lI) + '></span>' + htmlString.substr(lI + 7);
+							let htmlString = m.replace(`[${ck}`,'<span');
+							let lI = htmlString.lastIndexOf(']');
+							let full = htmlString.substr(0, lI) + '></span>' + htmlString.substr(lI + 7);
 							
-							const reactElem = parse(full);
-							const rProps = reactElem.props;
+							let reactElem = parse(full);
+							let rProps = reactElem.props;
 							delete rProps.children;
-							const allAtts = rProps;
+							let allAtts = rProps;
 
 							arr.push({
 								c: ck,
