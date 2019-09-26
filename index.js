@@ -402,6 +402,12 @@ module.exports = function(props) {
 			obj.properties.style = styles;
 		}
 
+		Object.keys(node.props).forEach((no_e) => {
+			if(no_e !== "children" || no_e !== "className"){
+				obj.properties[no_e] = node.props[no_e];
+			}
+		})
+
 		if (node.props.className) {
 			obj.properties.className = node.props.className.split(" ");
 		}
