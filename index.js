@@ -92,8 +92,12 @@ module.exports = function(props) {
 						// If a starting tag is found, it's index and other details are recorded and the attributes are extracted.
 						if (match) {
 							let m = match[0];
+							
+							let comp = m.split(" ")[0];
 
-							if(m !== `[${ck}]`) continue;
+							comp = comp[comp.length - 1] === "]" ? comp : comp+"]";
+							
+							if(comp !== `[${ck}]`) continue;
 
 							// The below code extracts attributes by converting the shortcode to a span element. Then the attributes are fetched using normal methods. 
 
